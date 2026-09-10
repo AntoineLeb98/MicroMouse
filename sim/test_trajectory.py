@@ -1,23 +1,26 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from physics.robot import Robot
-
-## Création des paramètres de simulation
-dt = 0.1 # incrémentation du temps en s
-T = 10 # durée de la simulation en s
-N = int(T/dt) # nombre d'itérations de la simulation
-t = np.linspace(0, T, N) # vecteur temps
-state = np.zeros((N,6)) # états du robot
-
+from solver.controleur import Controleur_BO
 
 ## Création du robot
 micromouse = Robot()
-micromouse.dt = dt
+micromouse.engine_RPM = 280 #RPM
+micromouse.engine_torque = 0.3923 #Nm
+micromouse.mass = 100 #kg
+micromouse.wheel_radius = 0.02 #m
+micromouse.wheel_mass = 0.01 #kg
 
-## Boucle de simulation
-for i in range(N):
-    micromouse.impulsion_moteur(0.1, 0) # application d'une impulsion moteur
-    state[i,:] = micromouse.state.flatten()
+## Séquence des commandes
+commandes = [('avance', 3), ('tourne', 'droite'), ('avance', 2)]
+ctrl = Controleur_BO(micromouse, commandes)
+
+## Exécution de la séquence
+ctrl.execute()
+
+## Reconstruction de state et t à partir de l'historique
+state = np.array(ctrl.history)
+t = np.arange(len(state)) * micromouse.dt
 
 ## Création du graphe
 fig, axes = plt.subplots(2,2, figsize=(10,6))
@@ -58,6 +61,4 @@ plt.tight_layout()
 plt.show()
 
 
-
-
-
+## Commandes moteur
