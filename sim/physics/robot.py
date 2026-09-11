@@ -18,6 +18,7 @@ class Robot:
 
         ## Calcul des états et de l'accélération
         self.state = np.zeros((6,1), dtype = float)  # variables d'état = [x,y,theta,vx,vy,omega]
+        self.wheel_rotation = np.zeros((2,1))
         self.wheel_speeds = np.zeros((2,1)) # [omega_gauche, omega_droite]
         self.a = 0 #acceleration linéaire du robot en m/s^2
         self.alpha = 0 #acceleration angulaire du robot en rad/s^2
