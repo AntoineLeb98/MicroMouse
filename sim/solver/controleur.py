@@ -1,23 +1,23 @@
-from physics.robot import Robot
+from physics.robot import RobotIdeal
 import numpy as np
 
 class Controleur_BO:
     def __init__(self, robot, commandes):
-        self.robot = robot
+        self.robot = RobotIdeal()
         self.commandes = commandes
         self.taille_cellule = 0.3
 
         # Gains
         self.Kp_lin = 0.1
-        self.Kd_lin = 0
+        self.Kd_lin = 0.1
         self.Kp_ang = 0.1
-        self.Kd_ang = 0
+        self.Kd_ang = 0.1
 
         # Tolérances de convergence
-        self.tol_pos = 0.1
-        self.tol_vit = 0.1
-        self.tol_angle = 0.1
-        self.tol_omega = 0.1
+        self.tol_pos = 0.01 #m
+        self.tol_vit = 0.01
+        self.tol_angle = 0.01 #rad
+        self.tol_omega = 0.005
 
         # Commandes
         self.history = []
