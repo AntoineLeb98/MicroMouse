@@ -14,9 +14,10 @@ micromouse.wheel_radius = 0.02 #m
 ## Création des commandes et du contrôleur
 commandes = [('avance', 3), ('tourne', 'gauche'), ('avance', 5), ('tourne', 'gauche'), ('avance', 2), ('tourne', 'droite'), ('avance', 2)]
 ctrl = Controleur_BO(micromouse, commandes)
-ctrl.Kd_lin = 0.13
-ctrl.Kd_ang = 0.005
-ctrl.Kp_ang = 0.001
+ctrl.Kp_lin = 0.3
+ctrl.Kd_lin = 0.2
+ctrl.Kp_ang = 0.03
+ctrl.Kd_ang = 0.01
 
 
 ## Exécution de la séquence

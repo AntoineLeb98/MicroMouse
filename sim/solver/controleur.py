@@ -8,10 +8,10 @@ class Controleur_BO:
         self.taille_cellule = 0.3
 
         # Gains
-        self.Kp_lin = 0.1
+        self.Kp_lin = 0.5
         self.Kd_lin = 0.1
-        self.Kp_ang = 0.1
-        self.Kd_ang = 0.1
+        self.Kp_ang = 1
+        self.Kd_ang = 1
 
         # Tolérances de convergence
         self.tol_pos = 0.01 #m
