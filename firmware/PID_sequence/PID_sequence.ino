@@ -14,6 +14,9 @@
 #define encodeur_2A 3
 #define encodeur_2B 5
 
+// Debug mode
+bool debug = true;
+
 // Définition des objets de classe
 Motor moteur1 = Motor(AI1, AI2, PWMA, -1, STBY);
 Motor moteur2 = Motor(BI1, BI2, PWMB, 1, STBY);
@@ -26,47 +29,61 @@ bool sens_rotation2 = false;
 float n_clic = 103;
 
 // Roues & véhicule
-float dia_roue = 0.06; // diamètre de roue en m
-float empattement = 0.19; // distance entre les roues en m
-float Z = 0.8; // un coefficient de multiplication de la vitesse
+float dia_roue = 60; // diamètre de roue en mm
+float empattement = 160; // distance entre les roues en mm
+float Z = 0.5; // un coefficient de multiplication de la vitesse
+float x0 = 0; // pour le calcul de la vitesse
+float a0 = 0; // pour le calcul de la vitesse angulaire
+
+// Labyrinthe
+float d_case = 300; // distance d'une cellule
 
 // PID
-// gains
-const float kp_p = 800; // gain proportionnel en position
-const float kd_p = 200; // gain dérivé en position
-const float ki_p = 10; // gain intégral en position
-const float kp_a = 2; // gain proportionnel angulaire
-const float kd_a = 2; // gain dérivé angulaire
-const float ki_a = 0.001; // gain intégral angulaire
+// gains directionnels
+const float kp_p = 4; // gain proportionnel en position
+const float kd_p = 6; // gain dérivé en position
+const float ki_p = 0.01; // gain intégral en position
+// gains angulaires
+const float kp_a = 1.5; // gain proportionnel angulaire
+const float kd_a = 1; // gain dérivé angulaire
+const float ki_a = 0.003; // gain intégral angulaire
 // erreur
 float ed0 = 0; // pour le calcul de l'erreur dérivée
 float ei0 = 0; // pour le calcul de l'erreur intégrale
 // consigne
-float cons_p = 0.3; // consigne en position en m
-float cons_a = -90; // consigne angulaire en deg
+float cons_p = 0; // consigne en position en m
+float cons_a = 0; // consigne angulaire en deg
 // tolerance
-float tol_p = 0.005; 
+float tol_p = 5; 
 float tol_a = 1;
+float tol_v = 2;
+float tol_w = 2;
 
 // Orchestration du mouvement
 enum MOVES {ATTENTE, GO, AVANCE, TOURNE, CELEBRE, TEST};
 MOVES dance_moves = GO;
-int count = 0;
+int compte = 0;
 float periode_ctrl = 50; // période de calcul (ms)
 unsigned long temps_actuel = 0;
 unsigned long dernier_temps = 0;
 
 // Liste des consignes
-// struct Consignes {
-//   int orientation;
-//   int nbCases;
-// }
-
-// Consignes listeConsignes[2];
-// listeConsignes[0].orientation = 90;
-// listeConsignes[0].nbCases = 2;
-// listeConsignes[1].orientation = 90;
-// listeConsignes[1].nbCases = 2;
+struct Mouvements {
+  int orientation;
+  int nbCases;
+};
+const int nombre_mouvements = 9; 
+Mouvements liste_consignes[nombre_mouvements] {
+  {0, 2},
+  {-90, 1},
+  {-90, 1},
+  {90, 1},
+  {90, 4},
+  {90, 4},
+  {-90, 4},
+  {-90, 2},
+  {90, 2}
+};
 
 // Séquences d'interupt pour le compte des encodeurs
 void encodeur1_ISR() {
@@ -90,8 +107,18 @@ float position() {
   return distance_mesure;
 }
 float orientation() {
-  float orientation_mesure = (compte_encodeur1 - compte_encodeur2)*180*dia_roue/(empattement*n_clic);
+  float orientation_mesure = (compte_encodeur1 - compte_encodeur2)*180*dia_roue/(empattement*0.5*n_clic);
   return orientation_mesure;
+}
+float vitesse(float x, float dt) {
+  float v = (x-x0)/dt;
+  x0 = x;
+  return v;
+}
+float vitesse_angulaire(float a, float dt) {
+  float w = (a-a0)/dt;
+  a0 = a;
+  return w;
 }
 
 // Contrôleur PID
@@ -111,21 +138,18 @@ float erreur_integrale(float erreur, float dt) {
 }
 
 void setup() {
-  // put your setup code here, to run once:
-  pinMode(encodeur_1A,  INPUT_PULLUP); // connexion aux encodeurs
+  pinMode(encodeur_1A,  INPUT_PULLUP);
   pinMode(encodeur_1B,  INPUT_PULLUP);
   pinMode(encodeur_2A,  INPUT_PULLUP);
   pinMode(encodeur_2B,  INPUT_PULLUP);
 
-  attachInterrupt(digitalPinToInterrupt(encodeur_1A), encodeur1_ISR, RISING); // liaison à l'interupt service routine
+  attachInterrupt(digitalPinToInterrupt(encodeur_1A), encodeur1_ISR, RISING);
   attachInterrupt(digitalPinToInterrupt(encodeur_2A), encodeur2_ISR, RISING);
 
-  Serial.begin(9600); // vous êtes censé savoir c'est quoi
+  Serial.begin(9600);
 }
 
-
 void loop() {
-  // put your main code here, to run repeatedly:
   temps_actuel = millis();
   float dt = temps_actuel-dernier_temps;
 
@@ -133,7 +157,7 @@ void loop() {
     dernier_temps = temps_actuel;
     switch (dance_moves) {
       case ATTENTE: {
-        
+          delay(15000);
         break;
       }
       case TEST: {
@@ -144,14 +168,17 @@ void loop() {
         break;
       }
       case GO: {
+        cons_a = liste_consignes[compte].orientation;
         ed0 = cons_a;
         dance_moves = TOURNE;
         dernier_temps = millis();
         break;
       }
       case AVANCE: {
-        float erreur = cons_p - position();
-        if (abs(erreur) > tol_p) {
+        float x = position();
+        float erreur = cons_p - x;
+        float v = vitesse(x, dt);
+        if (abs(erreur) > tol_p || abs(v) > tol_v) {
           int cmd = PID(erreur, kp_p, kd_p, ki_p, dt);
           moteur1.drive(cmd);
           moteur2.drive(cmd);
@@ -162,19 +189,25 @@ void loop() {
           delay(1000);
           compte_encodeur1 = 0;
           compte_encodeur2 = 0;
-          ed0 = cons_a;
-          ei0 = 0;
-          dance_moves = CELEBRE;
+          compte += 1;
+          if (compte >= nombre_mouvements) {
+            dance_moves = CELEBRE;
+          } 
+          else {
+            cons_a = liste_consignes[compte].orientation;
+            ed0 = cons_a;
+            ei0 = 0;
+            dernier_temps = millis();
+            dance_moves = TOURNE;
+          }
         }
-        Serial.print("Consigne : ");
-        Serial.print(cons_p);
-        Serial.print(" Erreur : ");
-        Serial.println(erreur);  
         break;
       }
       case TOURNE: {
-          float erreur = cons_a - orientation();
-          if (abs(erreur) > tol_a) {
+          float theta = orientation();
+          float erreur = cons_a - theta;
+          float w = vitesse_angulaire(theta, dt);
+          if (abs(erreur) > tol_a || abs(w) > tol_w) {
             int cmd = PID(erreur, kp_a, kd_a, ki_a, dt);
             moteur1.drive(cmd);
             moteur2.drive(-cmd);
@@ -185,15 +218,12 @@ void loop() {
             delay(1000);
             compte_encodeur1 = 0;
             compte_encodeur2 = 0;
+            cons_p = liste_consignes[compte].nbCases * d_case;
             ed0 = cons_p;
             ei0 = 0;
             dernier_temps = millis();
             dance_moves = AVANCE;
           }
-        Serial.print("Consigne : ");
-        Serial.print(cons_a);
-        Serial.print(" Erreur : ");
-        Serial.println(erreur);  
         break;
       }
       case CELEBRE: {
@@ -202,5 +232,11 @@ void loop() {
         break;
       }
     }
+  }
+  if (debug) {
+    Serial.print("Position : ");
+    Serial.print(position());
+    Serial.print(" Orientation : ");
+    Serial.println(orientation());
   }
 }

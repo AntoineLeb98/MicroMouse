@@ -19,6 +19,10 @@ void setup() {
 }
 
 void loop() {
-  moteur1.drive(255);
-  moteur2.drive(255);
+  moteur1.drive(100);
+  moteur2.drive(100);
+  delay(1000);
+  moteur1.brake();
+  moteur2.brake();
+  delay(10000);
 }
